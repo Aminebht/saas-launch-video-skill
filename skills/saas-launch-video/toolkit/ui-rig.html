@@ -1,0 +1,159 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <!-- UI REBUILD RIG (reference). Copy to compositions/<scene>.html, rename the ids, then replace
+         the window contents with the product's REAL UI (from its code, screenshots or recording).
+         Style-neutral: colours/fonts come from brand variables; the frame treatment is a choice of
+         the approved direction (CAMERA below): "flat" (editorial, product-first), "tilt" (3D
+         perspective), "front" (straight-on, for bold/graphic framing).
+         Rig: #u-stage (perspective) > #u-tilt (rotation about the centre) > #u-move (x/y/scale
+         toward a target) > #u-win (the app window, 1600x940). Targets are measured in window space,
+         so the target lands at the frame centre whatever the tilt. -->
+  </head>
+  <body>
+    <template>
+      <style>
+        #root { position: absolute; inset: 0; overflow: hidden; font-family: var(--font-text); }
+        #u-stage { position: absolute; inset: 0; perspective: 1400px; }
+        #u-tilt, #u-move { position: absolute; inset: 0; transform-origin: 50% 50%; }
+        #u-win {
+          position: absolute; left: 160px; top: 70px; width: 1600px; height: 940px; border-radius: 16px; overflow: hidden;
+          background: var(--brand-paper); color: var(--brand-ink); box-shadow: 0 30px 80px rgba(0, 0, 0, 0.28), 0 0 0 1px var(--brand-line);
+        }
+        #u-win svg { display: block; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+        #u-side { position: absolute; left: 0; top: 0; bottom: 0; width: 230px; padding: 26px 18px; border-right: 1px solid var(--brand-line); }
+        .u-logo { display: flex; align-items: center; gap: 10px; margin: 0 0 30px 8px; font: 700 17px var(--font-display); }
+        .u-logo i { width: 26px; height: 26px; border-radius: 8px; background: var(--brand-primary); }
+        .u-nav { height: 40px; display: flex; align-items: center; padding: 0 12px; border-radius: 10px; font-size: 14px; color: var(--brand-muted); }
+        .u-nav.on { background: var(--brand-primary-soft); color: var(--brand-ink); font-weight: 500; }
+        #u-main { position: absolute; left: 230px; top: 0; right: 0; bottom: 0; padding: 30px 40px; }
+        #u-main h2 { font: 700 22px var(--font-display); }
+        #u-input { position: relative; margin-top: 20px; width: 760px; border-radius: 14px; border: 1px solid var(--brand-line); background: var(--brand-paper); box-shadow: 0 4px 14px rgba(0, 0, 0, 0.06); }
+        #u-input-text { position: relative; min-height: 58px; padding: 14px 64px 8px 16px; font-size: 15px; line-height: 1.55; }
+        #u-ph { position: absolute; left: 16px; top: 14px; color: var(--brand-muted); }
+        /* one span per typed character; pre-wrap keeps spaces as break points so long prompts wrap */
+        #u-input-text .ch { white-space: pre-wrap; }
+        .u-mention { color: var(--brand-primary); font-weight: 600; }
+        #u-caret { position: absolute; left: 0; top: 0; width: 2px; height: 21px; border-radius: 1px; background: var(--brand-primary); opacity: 0; }
+        #u-send { position: absolute; right: 12px; bottom: 10px; width: 38px; height: 38px; border-radius: 10px; display: flex; align-items: center; justify-content: center; background: var(--brand-primary); color: var(--brand-on-primary); }
+        #u-send svg { width: 16px; height: 16px; }
+        #u-result { position: absolute; left: 40px; top: 190px; width: 760px; padding: 28px 32px; border-radius: 16px; background: var(--brand-paper); border: 1px solid var(--brand-line); box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08); opacity: 0; }
+        #u-result h3 { font: 700 24px var(--font-display); }
+        .u-row { display: flex; justify-content: space-between; padding: 13px 0; border-bottom: 1px solid var(--brand-line); font-size: 15px; }
+        .u-total { display: flex; justify-content: space-between; margin-top: 16px; font: 700 20px var(--font-display); }
+        #u-cta { position: relative; margin-top: 20px; height: 46px; display: flex; align-items: center; justify-content: center; border-radius: 12px; background: var(--brand-primary); color: var(--brand-on-primary); font-weight: 600; }
+        #u-stats { position: absolute; right: 40px; top: 108px; width: 520px; display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+        .u-stat { padding: 20px; border-radius: 16px; border: 1px solid var(--brand-line); }
+        .u-stat p { font-size: 11px; font-weight: 600; letter-spacing: 0.1em; color: var(--brand-muted); }
+        .u-stat b { display: block; margin-top: 8px; font: 700 30px var(--font-display); }
+        #u-cursor { position: absolute; left: 0; top: 0; width: 30px; height: 30px; opacity: 0; transform-origin: 38% 8%; filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.35)); }
+        #u-cursor svg { width: 100%; height: 100%; overflow: visible; }
+      </style>
+
+      <div id="root" data-layout-allow-overlap data-composition-id="ui-rig" data-width="1920" data-height="1080">
+        <div id="u-stage">
+          <div id="u-tilt">
+            <div id="u-move">
+              <div id="u-win">
+                <div id="u-side">
+                  <div class="u-logo"><i></i>Lumen</div>
+                  <div class="u-nav on">Invoices</div>
+                  <div class="u-nav">Clients</div>
+                  <div class="u-nav">Time</div>
+                  <div class="u-nav">Reports</div>
+                </div>
+                <div id="u-main">
+                  <h2>Invoices</h2>
+                  <div id="u-input">
+                    <div id="u-input-text">
+                      <span id="u-ph">Ask Lumen to draft an invoice...</span>
+                      <span id="u-prompt">Invoice <span class="u-mention">Bluefield Studio</span> for 12 hours of design work, due in 14 days</span>
+                      <span id="u-caret"></span>
+                    </div>
+                    <div id="u-send"><svg viewBox="0 0 24 24"><path d="m22 2-7 20-4-9-9-4Z" /><path d="M22 2 11 13" /></svg></div>
+                  </div>
+                  <div id="u-result">
+                    <h3>Invoice #0142</h3>
+                    <div class="u-row"><span id="u-l1">UI design, 8 h × 90</span><span>720.00</span></div>
+                    <div class="u-row"><span id="u-l2">Design review, 4 h × 90</span><span>360.00</span></div>
+                    <div class="u-total"><span>Total</span><span id="u-total">1,080.00</span></div>
+                    <div id="u-cta">Send invoice</div>
+                  </div>
+                  <div id="u-stats">
+                    <div class="u-stat"><p>OUTSTANDING</p><b>4,320</b></div>
+                    <div class="u-stat"><p>PAID THIS MONTH</p><b id="u-paid">12,960</b></div>
+                  </div>
+                </div>
+                <div id="u-cursor">
+                  <svg viewBox="0 0 32 32">
+                    <path d="M11 3.6c0-1.5 1.1-2.6 2.5-2.6S16 2.1 16 3.6V12c.3-1 1.2-1.7 2.3-1.7 1.3 0 2.3 1 2.3 2.3v.6c.3-.9 1.1-1.5 2.1-1.5 1.2 0 2.1.9 2.1 2.1v1c.3-.6.9-1 1.7-1 1.1 0 1.9.9 1.9 1.9V21c0 4.6-3.3 8.2-7.9 8.2h-3c-2.6 0-4.4-1.2-5.8-3.2l-5-7c-.8-1.1-.6-2.6.5-3.4 1.1-.8 2.6-.6 3.4.5L11 18.4z" fill="#fff" stroke="#111" stroke-width="1.5" stroke-linejoin="round" />
+                    <path d="M16 12v5.5M20.6 13.2v4.3M24.8 15v3" stroke="#111" stroke-width="1.3" stroke-linecap="round" fill="none" />
+                  </svg>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <script>
+        (function () {
+          document.fonts.ready.then(function () {
+            const FX = window.FX;
+            const tl = gsap.timeline({ paused: true });
+            const $ = (id) => document.getElementById(id);
+            const CAMERA = "flat"; // "flat" | "tilt" | "front": set by the approved direction
+            const TILT = { flat: [0, 0], front: [0, 0], tilt: [11, -15] }[CAMERA];
+            const win = $("u-win");
+            const WCX = 800, WCY = 470;
+
+            // measure phase: read offsets while laid out, then hide (hidden elements measure as 0)
+            const caret = $("u-caret"), box = $("u-input-text");
+            gsap.set("#u-ph", { display: "none" });
+            const units = FX.split($("u-prompt"));
+            const pos = FX.measure(units, box);
+            gsap.set("#u-prompt", { display: "none" });
+            gsap.set("#u-ph", { display: "inline" });
+            const centreOf = (el) => {
+              const o = FX.offsetIn(el, win);
+              return { x: o.x + el.offsetWidth / 2 - WCX, y: o.y + el.offsetHeight / 2 - WCY };
+            };
+            const cursorAt = (el) => {
+              const o = FX.offsetIn(el, win);
+              return { x: o.x + el.offsetWidth / 2 - 11, y: o.y + el.offsetHeight / 2 - 2 };
+            };
+            // camera: absolute values only (relative "+=" tweens break parallel render workers)
+            function cam(at, dur, ease, s, target) {
+              const c = target ? (target.nodeType ? centreOf(target) : target) : { x: 0, y: 0 };
+              const p = { scale: s, x: -c.x * s, y: -c.y * s, rotationX: TILT[0], rotationY: TILT[1] };
+              if (dur === 0) tl.set("#u-move", { scale: p.scale, x: p.x, y: p.y }, at);
+              else tl.to("#u-move", { scale: p.scale, x: p.x, y: p.y, duration: dur, ease }, at);
+            }
+            gsap.set("#u-tilt", { rotationX: TILT[0], rotationY: TILT[1] });
+            const input = $("u-input"), send = $("u-send"), result = $("u-result"), cur = $("u-cursor");
+
+            cam(0, 0, "none", 0.86, null);
+            cam(0, 0.9, "power2.out", 0.9, null);
+            cam(0.9, 0.6, FX.PUNCH, 2.0, input);
+            tl.set("#u-ph", { display: "none" }, 1.2);
+            tl.set("#u-prompt", { display: "inline" }, 1.2);
+            FX.typewriter(tl, units, 1.22, 48, caret, box, { pos, caretHold: 0.05 });
+            tl.set(cur, { x: cursorAt(send).x + 130, y: cursorAt(send).y + 110, opacity: 1 }, 2.1);
+            FX.glide(tl, cur, cursorAt(send), 2.12, 0.45);
+            FX.click(tl, cur, send, 2.62);
+            tl.to(cur, { opacity: 0, duration: 0.15 }, 2.8);
+            cam(2.75, 0.7, "power3.inOut", 1.45, result);
+            tl.fromTo(result, { opacity: 0, y: 30 }, { opacity: 1, y: 0, duration: 0.45, ease: "expo.out" }, 2.85);
+            FX.stream(tl, $("u-l1"), 3.0, 9, getComputedStyle(document.documentElement).getPropertyValue("--brand-primary").trim());
+            FX.stream(tl, $("u-l2"), 3.3, 9, getComputedStyle(document.documentElement).getPropertyValue("--brand-primary").trim());
+            FX.countUp(tl, $("u-total"), 0, 1080, 3.5, 0.6, (n) => n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
+            cam(4.4, 0.9, "power3.inOut", 0.9, null);
+
+            window.__timelines["ui-rig"] = tl;
+          });
+        })();
+      </script>
+    </template>
+  </body>
+</html>

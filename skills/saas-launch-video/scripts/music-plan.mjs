@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Turn video.config.json "musicPlan" into a music prompt the user pastes into ElevenLabs
+// Turn music-plan.json (written per video from the approved beat sheet) into a music prompt the user pastes into ElevenLabs
 // (elevenlabs.io → Music, or Video to Music with an upload copy of the render).
 // Section times come from the cut points, so the musical changes land on the cuts.
 //
@@ -11,12 +11,20 @@ import fs from "node:fs";
 import path from "node:path";
 
 const dir = path.resolve(process.argv[2] || ".");
-const cfg = JSON.parse(fs.readFileSync(path.join(dir, "video.config.json"), "utf8"));
-const plan = cfg.musicPlan;
-if (!plan?.sections?.length) {
-  console.error('video.config.json has no "musicPlan.sections"; see references/MUSIC.md');
+const planPath = path.join(dir, "music-plan.json");
+if (!fs.existsSync(planPath)) {
+  console.error("no music-plan.json in the project; see references/MUSIC.md");
   process.exit(1);
 }
+const plan = JSON.parse(fs.readFileSync(planPath, "utf8"));
+if (!plan.sections?.length) {
+  console.error('music-plan.json has no "sections"; see references/MUSIC.md');
+  process.exit(1);
+}
+// video length: music-plan.json "duration", else the root data-duration in index.html
+const idx = path.join(dir, "index.html");
+const rootDur = fs.existsSync(idx) ? Number((fs.readFileSync(idx, "utf8").match(/data-composition-id="main"[^>]*data-duration="([\d.]+)"/) || [])[1]) : NaN;
+const cfg = { duration: plan.duration || rootDur || 30 };
 const secs = [...plan.sections].sort((a, b) => a.start - b.start);
 if (secs[0].start !== 0) {
   console.error("musicPlan: the first section must start at 0");

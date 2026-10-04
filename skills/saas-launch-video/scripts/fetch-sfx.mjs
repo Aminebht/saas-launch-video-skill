@@ -30,4 +30,4 @@ for (const f of fs.readdirSync(src)) {
     n++;
   }
 }
-console.log(`copied ${n} files from ${src} -> ${dest}. Rebuild with build.mjs so the audio clips are included.`);
+console.log(`copied ${n} files from ${src} -> ${dest}. Mount them as <audio id=...> clips in index.html or a scene.`);

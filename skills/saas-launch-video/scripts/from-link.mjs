@@ -1,20 +1,21 @@
 #!/usr/bin/env node
-// Link mode: capture a product's public website and pre-fill the project from it.
+// Link mode: capture a product's public website and turn it into the project's brand.
 //
 //   node from-link.mjs <url> <project-dir> [--refresh]
 //
 // 1. Runs `npx hyperframes capture <url>` into <project>/capture (skipped if present, unless --refresh).
-// 2. Picks brand roles from the captured colours (dark ink, accent, secondary, light tint).
+// 2. Picks colour roles from the captured colours (primary, secondary, ink, paper).
 // 3. Copies the brand mark, logo candidates and the share image into assets/.
-// 4. Installs the site's font from @fontsource when it is a Google Font (else keeps Poppins).
-// 5. Patches video.config.json (brand, colours, plate, montage text) and writes brand-kit.md:
-//    a summary for the agent plus the list of in-app screens still needed from the user.
-// A public link never shows the logged-in product. That part still needs screenshots, a screen
-// recording or a session the user logs into themselves.
+// 4. Writes brand.json (fonts = the site's heading/body families) and runs brand.mjs, which
+//    installs the fonts from @fontsource and injects the brand variables into index.html.
+// 5. Writes brand-kit.md: what was found, copy material, and the in-app screens still needed.
+// A public link never shows the logged-in product. That still needs screenshots, a screen
+// recording or a browser session the user logs into themselves.
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
+import { fileURLToPath } from "node:url";
 
 const args = process.argv.slice(2);
 const refresh = args.includes("--refresh");
@@ -85,7 +86,7 @@ const stats = (tokens.colorStats || []).filter((c) => hexToRgb(c.hex) && (c.coun
 const score = (c) => (c.interactiveBg || 0) * 5 + (c.bgCount || 0) * 2 + (c.textCount || 0) * 0.5 + Math.log10((c.maxArea || 0) + 1);
 
 const accentC = stats.filter((c) => hsl(c.hex)[1] > 0.35 && lum(c.hex) > 0.04 && lum(c.hex) < 0.75).sort((a, b) => score(b) - score(a))[0];
-const accent = accentC ? accentC.hex : "#7049c3";
+const accent = accentC ? accentC.hex : "#3b5bfd";
 const accentHue = hsl(accent)[0];
 // a real second brand hue if the site uses one; otherwise a soft companion tint ~40deg round the wheel
 const secondC = stats.filter((c) => c.hex !== accent && hsl(c.hex)[1] > 0.3 && lum(c.hex) > 0.04 && hueDist(hsl(c.hex)[0], accentHue) >= 25).sort((a, b) => score(b) - score(a))[0];
@@ -133,76 +134,29 @@ if (og) {
   ogRel = rel(dest);
 }
 
-// ---------- 4. font ----------
-const family = (styles.typography || []).find((t) => /heading/.test(t.role))?.fontFamily || tokens.fonts?.[0]?.family || null;
-let fontUsed = "Poppins";
-let fontNote = family ? `the site uses ${family}` : "kept Poppins (no site font detected)";
-if (family && family.toLowerCase() === "poppins") fontNote = "the site uses Poppins (already bundled)";
-if (family && family.toLowerCase() !== "poppins") {
-  const slug = family.toLowerCase().replace(/\s+/g, "-");
-  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "fontsource-"));
-  const pack = spawnSync("npm", ["pack", `@fontsource/${slug}`, "--silent"], { cwd: tmp, shell, encoding: "utf8" });
-  const tgz = list(tmp).find((f) => f.endsWith(".tgz"));
-  if (pack.status === 0 && tgz) {
-    spawnSync("tar", ["-xzf", tgz], { cwd: tmp });
-    const files = path.join(tmp, "package", "files");
-    const got = [400, 500, 600, 700, 800].filter((w) => {
-      const f = path.join(files, `${slug}-latin-${w}-normal.woff2`);
-      if (!fs.existsSync(f)) return false;
-      fs.copyFileSync(f, path.join(project, "assets", "fonts", path.basename(f)));
-      return true;
-    });
-    const lic = list(path.join(tmp, "package")).find((f) => /LICENSE/i.test(path.basename(f)));
-    if (lic) fs.copyFileSync(lic, path.join(project, "assets", "fonts", `LICENSE-${slug}.txt`));
-    if (got.length) {
-      fontUsed = family;
-      fontNote = `installed ${family} (${got.join(", ")}) from @fontsource`;
-    }
-  } else fontNote = `"${family}" is not on @fontsource (likely a custom/paid font): kept Poppins; ask the user for .woff2 files named ${slug}-latin-<weight>-normal.woff2`;
-  fs.rmSync(tmp, { recursive: true, force: true });
-}
-
-// ---------- 5. patch config ----------
-const cfgPath = path.join(project, "video.config.json");
-const cfg = JSON.parse(fs.readFileSync(cfgPath, "utf8"));
+// ---------- 4. brand.json ----------
+const typo = styles.typography || [];
+const display = typo.find((t) => /heading/.test(t.role))?.fontFamily || tokens.fonts?.[0]?.family || "Inter";
+const textFont = typo.find((t) => /body|paragraph|text/.test(t.role))?.fontFamily || display;
 const host = new URL(url).hostname.replace(/^www\./, "");
 const desc = (tokens.description || "").replace(/\s+/g, " ").trim();
-const firstSentence = desc.split(/(?<=[.!?])\s/)[0] || desc;
-Object.assign(cfg.brand, {
+const paperC = stats.filter((c) => lum(c.hex) > 0.85 && ((c.bgCount || 0) > 0 || (c.areaBg || 0) > 0)).sort((a, b) => (b.maxArea || 0) - (a.maxArea || 0))[0];
+const brandPath = path.join(project, "brand.json");
+const prev = fs.existsSync(brandPath) ? JSON.parse(fs.readFileSync(brandPath, "utf8")) : {};
+const brand = {
   name,
-  wordmark: name.toUpperCase(),
   url: host,
-  font: fontUsed,
-  ...(mark ? { mark } : {}),
-  ...(logos[0] ? { logo: logos[0] } : {}),
-});
-Object.assign(cfg.brand.colors, {
-  ink: roles.ink,
-  keywordFrom: roles.keywordFrom,
-  keywordTo: roles.keywordTo,
-  caretFrom: mix(accent, "#ffffff", 0.35),
-  caretTo: accent,
-  chipBorder: mix(accent, "#ffffff", 0.35),
-});
-cfg.plate.colors = {
-  ink: roles.ink,
-  deep: mix(roles.ink, accent, 0.18),
-  a: accent,
-  b: fromHsl((accentHue + 345) % 360, Math.min(0.85, hsl(accent)[1] + 0.1), Math.max(0.45, hsl(accent)[2])),
-  c: roles.keywordTo,
-  d: roles.light,
+  tagline: desc.split(/(?<=[.!?])\s/)[0] || desc,
+  logo: { mark: mark || prev.logo?.mark || null, onDark: logos[0] || null, onLight: logos[1] || logos[0] || null, candidates: logos },
+  fonts: { display, text: textFont, mono: prev.fonts?.mono || "JetBrains Mono" },
+  colors: { primary: roles.accent, secondary: roles.secondary, ink: roles.ink, paper: paperC ? paperC.hex : "#ffffff" },
+  extraColors: { tint: roles.light },
+  shareImage: ogRel,
+  source: url,
 };
-if (cfg.montage) {
-  Object.assign(cfg.montage, {
-    handle: slugName || cfg.montage.handle,
-    url: host,
-    caption: firstSentence.slice(0, 110),
-    previewTitle: name,
-    previewDesc: desc.slice(0, 70),
-  });
-  if (ogRel) Object.assign(cfg.montage.images, { ad: ogRel, chat: ogRel });
-}
-fs.writeFileSync(cfgPath, JSON.stringify(cfg, null, 2) + "\n");
+fs.writeFileSync(brandPath, JSON.stringify(brand, null, 2) + "\n");
+const b = spawnSync(process.execPath, [path.join(path.dirname(fileURLToPath(import.meta.url)), "brand.mjs"), project], { encoding: "utf8" });
+const fontNote = (b.stdout || "").trim() + (b.stderr ? " " + b.stderr.trim() : "");
 
 // ---------- 6. brand kit report ----------
 const shots = list(path.join(cap, "screenshots")).filter((f) => !/contact-sheet/.test(f)).map(rel);
@@ -214,23 +168,23 @@ const report = `# Brand kit from ${url}
 Generated by from-link.mjs. **Verify before building**: open the logo candidates and the screenshots.
 
 ## Identity
-- Name: **${name}**, wordmark ${name.toUpperCase()}, URL ${host}
+- Name: **${name}**, URL ${host}
 - Title: ${title}
 - Description: ${desc}
-- Font: ${fontNote}
+- Fonts: display ${display}, text ${textFont} (${fontNote})
 - Brand mark (icon): ${mark || "none found: ask the user"}
-- Logo candidates (the end lockup needs one that reads on a dark background; brand.logo = the first one):
+- Logo candidates (open them; set brand.json logo.onDark / logo.onLight to the right files):
 ${logos.length ? logos.map((l) => `  - ${l}`).join("\n") : "  - none found: ask the user for a light-on-dark logo"}
-- Share image: ${ogRel || "none"} (used for the montage ad + chat preview)
+- Share image: ${ogRel || "none"}
 
-## Colours (written to video.config.json)
+## Colours (written to brand.json)
 | Role | Hex |
 | --- | --- |
-| ink (card background) | ${roles.ink}${inkC ? "" : " (derived: the site has no dark surface)"} |
-| accent | ${roles.accent} |
-| secondary | ${roles.secondary}${secondC ? "" : " (derived companion tint: the site uses one hue)"} |
-| light tint | ${roles.light} |
-| gradient keyword | ${roles.keywordFrom} → ${roles.keywordTo} |
+| primary | ${brand.colors.primary} |
+| secondary | ${brand.colors.secondary}${secondC ? "" : " (derived companion tint: the site uses one hue)"} |
+| ink (darkest surface) | ${brand.colors.ink}${inkC ? "" : " (derived: the site has no dark surface)"} |
+| paper (lightest surface) | ${brand.colors.paper} |
+| tint | ${roles.light} |
 
 ## Copy material (headings, calls to action, visible text)
 ${headings.join("\n")}
@@ -262,6 +216,6 @@ Ask for ONE of:
 fs.writeFileSync(path.join(project, "brand-kit.md"), report);
 
 console.log(`brand kit -> ${path.join(project, "brand-kit.md")}`);
-console.log(`  ${name} · accent ${roles.accent} · secondary ${roles.secondary} · ink ${roles.ink} · ${fontNote}`);
+console.log(`  ${name} · primary ${brand.colors.primary} · secondary ${brand.colors.secondary} · ink ${brand.colors.ink} · fonts ${display}/${textFont}`);
 console.log(`  mark: ${mark || "missing"} · logo candidates: ${logos.length} · share image: ${ogRel || "none"} · screenshots: ${shots.length}`);
-console.log("next: verify the brand kit, rebuild (build.mjs), then ask the user for the in-app screens listed in brand-kit.md");
+console.log("next: verify brand-kit.md (logos, colours), then pitch 3 directions; ask for the in-app screens after the script is approved");

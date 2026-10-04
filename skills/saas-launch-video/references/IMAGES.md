@@ -4,8 +4,8 @@ The user generates the images with their own tool. Your job is to write prompts 
 
 ## Which slots need images
 
-- The product's own output, if it shows media (generated pages, posts, listings): a hero shot, 3 feature/service shots, and one wide "place" shot.
-- Montage: `ad` (16:9 or 4:3), `story` (9:16), `video` (9:16 or 4:5), `chat` (16:9). Reuse product images where they fit.
+- Only what the approved direction and script need. Typical cases: the product's own output when it shows media (generated pages, posts, listings), a persona photo (Customer story), textures or scenes for an editorial spread, an object reference for a 3D metaphor.
+- List each slot with the scene it belongs to, so the user knows why it is needed.
 - Before/after edits need a matching pair. Say "same subject and framing as image N" and suggest using it as a reference image.
 
 ## Prompt recipe

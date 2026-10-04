@@ -1,0 +1,63 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <!-- TECHNIQUE DEMO, family "Cinematic 3D" (device stage). Study the moves, don't copy the
+         layout: a Three.js laptop whose screen is the real UI (a PNG frozen from a rebuilt UI scene),
+         a slow orbit + push camera, a screen-state cut, a light sweep and a held title. ~6 s.
+         Needs the root importmap for "three" and "three/addons/". -->
+  </head>
+  <body>
+    <template>
+      <style>
+        #root { position: absolute; inset: 0; overflow: hidden; background: radial-gradient(70% 70% at 50% 55%, var(--brand-primary-deep) 0%, var(--brand-ink) 70%); font-family: var(--font-display); color: var(--brand-paper); }
+        #ci-canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+        #ci-floor { position: absolute; left: 0; right: 0; bottom: 0; height: 40%; background: radial-gradient(50% 60% at 50% 0%, color-mix(in srgb, var(--brand-primary) 35%, transparent), transparent 70%); opacity: 0.6; }
+        #ci-sweep { position: absolute; top: -20%; bottom: -20%; width: 380px; left: -500px; transform: rotate(18deg); background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.16), transparent); mix-blend-mode: screen; }
+        #ci-title { position: absolute; left: 120px; bottom: 110px; font-weight: 600; font-size: 76px; letter-spacing: -0.035em; line-height: 1.05; }
+        #ci-title span { display: block; overflow: hidden; padding-bottom: 0.06em; }
+        #ci-title b { display: block; font-weight: 600; }
+        #ci-title span:last-child b { color: var(--brand-secondary); }
+      </style>
+      <div id="root" data-composition-id="ex-cinematic" data-width="1920" data-height="1080">
+        <div id="ci-floor"></div>
+        <canvas id="ci-canvas"></canvas>
+        <div id="ci-sweep"></div>
+        <div id="ci-title"><span><b>Your whole back office.</b></span><span><b>One window.</b></span></div>
+      </div>
+      <script type="module">
+        import { createStage } from "./lib/three-stage.js";
+        // inside a sub-composition, hf-seek already delivers scene-local time: keys start at 0
+        const css = getComputedStyle(document.documentElement);
+        createStage({
+          canvas: document.getElementById("ci-canvas"),
+          mode: "laptop",
+          screens: [
+            { t: 0, src: "assets/examples/ui-home.webp" },
+            { t: 2.9, src: "assets/examples/ui-result.webp" },
+          ],
+          // looking LEFT of the device puts it on the right third, leaving dark space for the title
+          camera: [
+            { t: 0, pos: [0.6, 2.4, 10.4], look: [-2.1, 0.9, 0], fov: 30 },
+            { t: 3, pos: [-0.3, 2.0, 9.2], look: [-1.95, 1.0, 0], fov: 30 },
+            { t: 6, pos: [-1.0, 1.7, 8.3], look: [-1.8, 1.05, 0], fov: 29 },
+          ],
+          spin: [{ t: 0, y: -0.42 }, { t: 6, y: -0.16 }],
+          colors: { body: "#c8ccd4", accent: css.getPropertyValue("--brand-primary").trim() },
+        });
+      </script>
+      <script>
+        (function () {
+          document.fonts.ready.then(function () {
+            const tl = gsap.timeline({ paused: true });
+            tl.fromTo("#ci-sweep", { x: 0 }, { x: 2900, duration: 1.4, ease: "power2.inOut" }, 2.4);
+            document.querySelectorAll("#ci-title b").forEach((b, i) => {
+              tl.fromTo(b, { yPercent: 110 }, { yPercent: 0, duration: 0.8, ease: "expo.out" }, 3.7 + i * 0.12);
+            });
+            window.__timelines["ex-cinematic"] = tl;
+          });
+        })();
+      </script>
+    </template>
+  </body>
+</html>

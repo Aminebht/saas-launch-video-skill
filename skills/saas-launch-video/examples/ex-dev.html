@@ -1,0 +1,98 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <!-- TECHNIQUE DEMO, family "Technical / dev" (terminal + diagram). Study the moves, don't copy
+         the layout: a typed command with streamed log lines, a camera pan to an architecture diagram
+         whose boxes and wires draw on, packets travelling along the wires, a live latency count-up,
+         a push into one node. ~6 s. Brand variables only. -->
+  </head>
+  <body>
+    <template>
+      <style>
+        #root { position: absolute; inset: 0; overflow: hidden; background: var(--brand-ink); color: var(--brand-paper); font-family: var(--font-mono);
+          background-image: radial-gradient(color-mix(in srgb, var(--brand-paper) 12%, transparent) 1.2px, transparent 1.2px); background-size: 34px 34px; }
+        #dv-world { position: absolute; left: 0; top: 0; width: 3840px; height: 1080px; transform-origin: 0 0; }
+        #dv-term { position: absolute; left: 260px; top: 230px; width: 1400px; border-radius: 18px; overflow: hidden; background: color-mix(in srgb, var(--brand-ink) 80%, var(--brand-paper) 6%); border: 1.5px solid color-mix(in srgb, var(--brand-paper) 16%, transparent); box-shadow: 0 30px 80px rgba(0, 0, 0, 0.45); }
+        #dv-bar { height: 52px; display: flex; align-items: center; gap: 10px; padding: 0 22px; border-bottom: 1px solid color-mix(in srgb, var(--brand-paper) 12%, transparent); }
+        #dv-bar i { width: 14px; height: 14px; border-radius: 50%; background: color-mix(in srgb, var(--brand-paper) 25%, transparent); }
+        #dv-body { position: relative; padding: 34px 40px 40px; font-size: 34px; line-height: 1.65; }
+        .dv-prompt { color: var(--brand-primary); }
+        #dv-cmd { position: relative; }
+        #dv-caret { position: absolute; left: 0; top: 6px; width: 18px; height: 40px; background: var(--brand-primary); opacity: 0; }
+        .dv-log { color: color-mix(in srgb, var(--brand-paper) 72%, transparent); opacity: 0; }
+        .dv-log b { color: var(--brand-secondary); font-weight: 500; }
+        #dv-diagram { position: absolute; left: 1960px; top: 0; width: 1920px; height: 1080px; }
+        #dv-diagram svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+        .dv-box { fill: color-mix(in srgb, var(--brand-ink) 85%, var(--brand-paper) 8%); stroke: color-mix(in srgb, var(--brand-paper) 55%, transparent); stroke-width: 2.5; }
+        .dv-wire { stroke: var(--brand-primary); stroke-width: 3; fill: none; }
+        .dv-name { position: absolute; width: 340px; text-align: center; font: 600 34px var(--font-display); }
+        .dv-name small { display: block; font: 400 20px var(--font-mono); color: color-mix(in srgb, var(--brand-paper) 55%, transparent); margin-top: 6px; }
+        .dv-packet { position: absolute; left: 0; top: 0; width: 18px; height: 18px; border-radius: 50%; background: var(--brand-secondary); box-shadow: 0 0 18px var(--brand-secondary); }
+        #dv-lat { position: absolute; left: 790px; top: 640px; width: 340px; text-align: center; font: 600 68px var(--font-display); color: var(--brand-secondary); }
+        #dv-lat small { font-size: 30px; color: color-mix(in srgb, var(--brand-paper) 60%, transparent); }
+      </style>
+      <div id="root" data-composition-id="ex-dev" data-width="1920" data-height="1080">
+        <div id="dv-world">
+          <div id="dv-term">
+            <div id="dv-bar"><i></i><i></i><i></i></div>
+            <div id="dv-body">
+              <div><span class="dv-prompt">$ </span><span id="dv-cmd">npx lumen deploy --prod<span id="dv-caret"></span></span></div>
+              <div class="dv-log"><b>✓</b> built 14 pages in 1.2s</div>
+              <div class="dv-log"><b>✓</b> uploaded to 300+ edge locations</div>
+              <div class="dv-log"><b>✓</b> live at lumen.app/demo</div>
+            </div>
+          </div>
+          <div id="dv-diagram">
+            <svg viewBox="0 0 1920 1080" aria-hidden="true">
+              <rect class="dv-box" x="190" y="380" width="340" height="200" rx="22" />
+              <rect class="dv-box" x="790" y="380" width="340" height="200" rx="22" />
+              <rect class="dv-box" x="1390" y="380" width="340" height="200" rx="22" />
+              <path id="dv-w1" class="dv-wire" d="M530 480 C 640 480, 680 480, 790 480" />
+              <path id="dv-w2" class="dv-wire" d="M1130 480 C 1240 480, 1280 480, 1390 480" />
+            </svg>
+            <div class="dv-name" style="left: 190px; top: 438px">Browser<small>visitor</small></div>
+            <div class="dv-name" style="left: 790px; top: 438px">Edge<small>static html</small></div>
+            <div class="dv-name" style="left: 1390px; top: 438px">Data<small>leads · orders</small></div>
+            <div id="dv-lat"><span id="dv-ms">0</span><small> ms</small></div>
+            <div id="dv-p1" class="dv-packet"></div><div id="dv-p2" class="dv-packet"></div><div id="dv-p3" class="dv-packet"></div>
+          </div>
+        </div>
+      </div>
+      <script>
+        (function () {
+          document.fonts.ready.then(function () {
+            const FX = window.FX;
+            const tl = gsap.timeline({ paused: true });
+            const $ = (id) => document.getElementById(id);
+            // 1. type the command, stream the log
+            const caret = $("dv-caret");
+            const units = FX.split($("dv-cmd")).filter((u) => u !== caret);
+            const end = FX.typewriter(tl, units, 0.3, 26, caret, $("dv-cmd"), { caretDy: 0, caretHold: 0.1 });
+            document.querySelectorAll(".dv-log").forEach((l, i) => tl.fromTo(l, { opacity: 0, x: -14 }, { opacity: 1, x: 0, duration: 0.25, ease: "power2.out" }, end + 0.25 + i * 0.32));
+            tl.fromTo("#dv-world", { scale: 1, x: 0 }, { scale: 1.04, x: -40, duration: 2.6, ease: "none" }, 0);
+            // 2. camera pans across the same world to the diagram
+            tl.to("#dv-world", { x: -1960, scale: 1, duration: 0.9, ease: "power3.inOut" }, 2.6);
+            document.querySelectorAll(".dv-box").forEach((b, i) => FX.drawPath(tl, b, 2.9 + i * 0.15, 0.6));
+            document.querySelectorAll(".dv-name").forEach((n, i) => tl.fromTo(n, { opacity: 0, y: 12 }, { opacity: 1, y: 0, duration: 0.35 }, 3.2 + i * 0.15));
+            FX.drawPath(tl, $("dv-w1"), 3.35, 0.45);
+            FX.drawPath(tl, $("dv-w2"), 3.6, 0.45);
+            // 3. packets travel; latency counts up
+            [["dv-p1", 3.9], ["dv-p2", 4.25], ["dv-p3", 4.6]].forEach(([id, t]) => {
+              tl.fromTo("#" + id, { opacity: 0 }, { opacity: 1, duration: 0.05 }, t);
+              FX.alongPath(tl, $(id), $("dv-w1"), t, 0.45, "none");
+              tl.set("#" + id, { opacity: 0 }, t + 0.46);
+            });
+            FX.countUp(tl, $("dv-ms"), 0, 38, 3.9, 1.1, (n) => String(Math.round(n)));
+            // 4. push into the edge node (transition seed). World origin is top-left, so to put the
+            //    node centre (2920, 480 in world px) at the frame centre (960, 540) at scale s:
+            //    x = 960 - 2920 * s, y = 540 - 480 * s
+            const s = 1.6;
+            tl.to("#dv-world", { scale: s, x: 960 - 2920 * s, y: 540 - 480 * s, duration: 0.8, ease: "power3.in" }, 5.2);
+            window.__timelines["ex-dev"] = tl;
+          });
+        })();
+      </script>
+    </template>
+  </body>
+</html>

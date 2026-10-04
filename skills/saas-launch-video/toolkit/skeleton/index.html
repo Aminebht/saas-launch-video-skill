@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1920, height=1080" />
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "https://cdn.jsdelivr.net/npm/three@0.181.2/build/three.module.js",
+          "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.181.2/examples/jsm/"
+        }
+      }
+    </script>
+    <!-- brand:start -->
+    <!-- brand:end -->
+    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; background: var(--brand-ink); }
+      #root { position: relative; width: 100%; height: 100%; overflow: hidden; font-family: var(--font-text); color: var(--brand-paper); background: var(--brand-ink); }
+      .scene-slot { position: absolute; inset: 0; }
+    </style>
+    <script src="lib/fx.js"></script>
+  </head>
+  <body>
+    <!-- Root orchestrator. Mount one sub-composition per beat (or group of beats) as a
+         .scene-slot div with data-composition-src, data-start, data-duration, data-track-index,
+         data-width and data-height; put music and SFX as <audio id=...> elements on tracks 10+.
+         The look, structure and transitions come from the approved direction, not from here. -->
+    <div id="root" data-composition-id="main" data-width="1920" data-height="1080" data-duration="30" data-fps="30">
+    </div>
+    <script>
+      // Root timeline: only cross-scene overlays (transitions, a fade to black). Scenes own their timelines.
+      window.__timelines["main"] = gsap.timeline({ paused: true });
+    </script>
+  </body>
+</html>

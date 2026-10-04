@@ -1,63 +1,41 @@
 # Workflow in detail
 
-## 1. Learn the product
-
-- With a codebase: find the main app shell (toolbar, sidebar), the screen where the "magic" happens (prompt box, editor, dashboard), success states (toasts, cards), and the theme tokens (colours, fonts, radius). Copy class values, labels and copy strings exactly. The video should look like the product, not like a generic SaaS.
-- List the features that are live in production. Check the code (API tools, routes, feature flags) before claiming one. Unreleased branches don't count.
-- **Link mode** (the user gives a URL): `node <skill>/scripts/from-link.mjs <url> <project>`. It runs `hyperframes capture` into `capture/` and writes brand roles, the mark, logo candidates, the font (from @fontsource when it is a Google Font), the share image and the montage text into the config, plus `brand-kit.md`.
-  - Open the logo candidates and pick the one that reads on dark for `brand.logo`.
-  - Check the colours against the site screenshots in `capture/screenshots/`.
-  - Use `capture/extracted/visible-text.txt` and the headings for card copy and the feature list (confirm the features are live).
-- **In-app screens** (always needed unless you have the code): after the script is approved, ask for exactly the screens it uses (the list at the end of `brand-kit.md`). Accept screenshots, a screen recording (`ffmpeg -i rec.mp4 -vf fps=2 capture/rec/%04d.png`, then pick frames), or a browser session the user logs into themselves. Never type their password.
-- Without code or link: ask for 3-6 screenshots of the key screens, plus the logo (SVG or large PNG) and brand colours.
-
-## 2. Script (checkpoint)
-
-Present this as a short table and wait for approval or edits:
-
-1. **Demo scenario.** One concrete customer (a local garage, an agency, a clinic...). Concrete beats generic. Local or small businesses read well.
-2. **Beat sheet.** Time, beat type, copy, motion. A good 50 s shape:
-
-| Time | Beat |
-| --- | --- |
-| 0-2.5 | logo intro, logo shrinks and the product noun slides in ("Brand **pages**") |
-| 2.5-4.3 | promise card + the keyword alone as a hero card |
-| 4.3-6.4 | montage: where the output shows up (URL typed, 4 social shots, 6 frames each) + light leak |
-| 6.4-11 | product: wide shot, punch into the input, type the first prompt, click |
-| 11-13.6 | "**AI** writes it" (whip) + token chips (what it generates) |
-| 13.6-17.5 | the result builds itself (streaming text, images blur in, camera dollies) |
-| 17.5-34 | claim card → 3-5 short edits, each in the product's own interaction model (chat edits, settings, integrations, publish) |
-| 34-41 | outcome card + the place results land (dashboard, inbox, analytics) |
-| 41-46 | gradient card (tech claim) + feature pill wall |
-| 46-53 | tagline with a slot word swapping through customer types, then the logo lockup and fade |
-
-3. **Each product shot.** The exact text typed, what is clicked, and what changes on screen.
-4. **Pill labels** (only live features) and **tagline** (benefit + slot words, for example "More customers for your [garage/clinic/law firm/business]").
-
-Ask before showing third-party UI. Use stylised look-alikes with no real logos by default.
-
-## 3. Images (checkpoint)
-
-See IMAGES.md. Hand over all prompts in one message, with the target file names, and wait.
-
-## 4. Build loop
-
+## 0. Setup
 ```bash
-node <skill>/scripts/build.mjs .          # after every video.config.json change
-npx hyperframes@0.8.115 lint              # must be 0 errors
-npx hyperframes@0.8.115 snapshot --at 1.2,3,5.5,...   # midpoint of every beat
+node <skill>/scripts/new-project.mjs ./<product>-launch      # skeleton + toolkit + brand.json
+node <skill>/scripts/fetch-sfx.mjs ./<product>-launch        # optional sound effects
 ```
+Make sure the HyperFrames skills are present (`hyperframes-creative`, `hyperframes-animation`, `hyperframes-registry`); if not, run `npx hyperframes@0.8.115 skills update`.
 
-- Product scenes: copy `compositions/app.html` per scene, rebuild the real UI inside `#a-win`, and add a `scene` beat for each.
-- Cards can sit over a running scene (higher z-index). The scene keeps its state across the cut, so do resets (scroll, camera preset) while a card covers it.
-- Read the contact sheets yourself. Fix clipped text, empty frames, wrong framing and overlap before showing anything.
-- A draft render (`-q draft`) takes about 1 min per 30 s. Use it to check motion.
+## 1. Learn the product
+- **Code:** read the app shell, the screen where the value happens, success states, theme tokens and copy. Write `brand.json` by hand (BRAND.md), then run `brand.mjs`.
+- **Link (link mode):** `node <skill>/scripts/from-link.mjs <url> <project>` captures the site, writes `brand.json` + `brand-kit.md` and injects the brand. Open the logo candidates, set `logo.onDark` / `logo.onLight`, check the colours against `capture/screenshots/`.
+- **Screens only:** ask for the logo, colours and 3-6 key screens.
+- **Reference video:** if the user sent one, run `node <skill>/scripts/analyze-reference.mjs <video> <project>`, read the sheets, zoom into the transitions and write `reference.md` (REFERENCE.md) before pitching.
+- List the features that ship today and the audience. Note the brand's tone (serious, playful, technical, premium); it steers the pitch.
 
-## 5. Music (checkpoint): see MUSIC.md
+## 2. Pitch 3 directions (checkpoint) → PITCH.md
+Three different directions (DIRECTIONS.md looks + NARRATIVES.md shapes), each with a card and a rendered key frame. With a reference, A is the reference (REFERENCE.md §3). The user picks or mixes. Save the decision to `direction.md`.
 
-## 6. Deliver
+## 3. Script (checkpoint)
+For the chosen direction, a beat table: time, scene, what is on screen, copy, motion, transition into the next beat, sound. Plus the exact UI actions (what is typed or clicked, what changes) and the in-app screens you still need. Wait for approval, then ask for those screens (UI-REBUILD.md).
 
-1. `audio.music = { "src": "assets/music/track.mp3", "start": <offset>, "duration": <video - offset>, "volume": 0.9 }`. Pre-trim and fade the track with ffmpeg if needed (fade in 0.12 s, fade out over the last 1.4 s).
-2. Multiply every SFX `volume` by about 0.7 so they sit under the music. Drop SFX that fight the track's own hits.
-3. `npx hyperframes@0.8.115 render -q delivery --video-bitrate 16M -o renders/<name>-raw.mp4`
-4. `node <skill>/scripts/finalize.mjs renders/<name>-raw.mp4` produces `-final.mp4` (−14 LUFS) and `-final-upload.mp4` (< 100 MB).
+## 4. Images (checkpoint, only if the direction needs any) → IMAGES.md
+
+## 5. Build
+- One sub-composition per scene in `compositions/`, mounted from `index.html` (`.scene-slot` divs; see the skeleton comment). Root timeline only for cross-scene overlays.
+- For each scene:
+  1. Read the matching blueprint (`hyperframes-animation/blueprints/<id>.md`) and rules.
+  2. Search the registry for blocks and transitions before hand-building (`npx hyperframes@0.8.115 catalog <words> --json`, then `add`).
+  3. Build product scenes from `reference/ui-rig.html`; use `lib/fx.js` helpers and `lib/three-stage.js` for 3D.
+- Loop: `npx hyperframes@0.8.115 lint` (0 errors), `snapshot --at <every beat midpoint>`, read the contact sheets, fix. Then a draft render (`render -q draft`) to judge motion. With a reference, run `analyze-reference.mjs <video> <project> --compare renders/draft.mp4` and fix timing and look gaps.
+- Hold yourself to the direction: same palette treatment, the one signature move, the 2-3 transitions. Remove anything generic that crept in.
+
+## 6. Music (checkpoint) → MUSIC.md
+Write `music-plan.json` from the approved beat table, run `music-plan.mjs`, hand the prompt to the user (ElevenLabs), receive takes, mix variations, the user picks.
+
+## 7. Deliver
+1. Mount the chosen track as `<audio id="music">` at its offset (pre-trim and fade with ffmpeg); SFX at about 0.7× under it.
+2. `npx hyperframes@0.8.115 render -q delivery --video-bitrate 16M -o renders/<name>-raw.mp4`
+3. `node <skill>/scripts/finalize.mjs renders/<name>-raw.mp4` produces `-final.mp4` (−14 LUFS) and `-final-upload.mp4` (< 100 MB).
+4. Optional 1:1 or 9:16 cut: re-frame scenes (set `data-width`/`data-height`), don't just crop.

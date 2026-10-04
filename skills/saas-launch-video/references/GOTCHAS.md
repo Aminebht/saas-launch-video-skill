@@ -13,7 +13,7 @@
 - `gsap_non_transform_motion`: no `letterSpacing`, `width` or `top` tweens for motion. Do tracking as per-letter `x` offsets.
 - `gsap_relative_value_second_writer`: no `"+=0.1"` on a property another tween also writes (render workers seek cold). Always tween to absolute values.
 - `gsap_cold_seek_hidden_fromto_missing_reveal`: a `fromTo` that starts hidden must put `opacity: 1` in the **to** vars.
-- `missing_timeline_registry`: the registration must be visible in the file itself (build.mjs inlines `lib/cards.js` for this reason).
+- `missing_timeline_registry`: the `window.__timelines[...]` registration must be visible inside the file itself, not only in an external script.
 - Layout `content_overlap` errors from intentional layering (a before/after wipe, a card over a running scene, tilted rows): add `data-layout-allow-overlap` on the container. These are not render errors.
 
 ## Measuring layout
@@ -29,10 +29,16 @@
 - `display: inline` chars keep gradient-clipped text intact. Use `inline-block` only for letters that need transforms (the logo wordmark).
 - Recolour a whole generated page with a CSS variable (`--brand`) and tween it: `tl.fromTo(el, {"--brand": a}, {"--brand": b})`.
 
+## Scripts and 3D
+
+- Never write a closing `script` tag inside a JS comment in a file the page loads (`lib/*.js`). HyperFrames inlines scripts, the tag ends the script early, and the rest of the file is drawn on screen as text.
+- `hf-seek` (Three.js) carries **root** time, even inside a sub-composition. `three-stage.js` subtracts the scene start automatically by summing `data-start` up its ancestors. Hand-written Three.js scenes must do the same, or the camera freezes on its last key.
+- Put the `three` importmap in the root `index.html` `<head>` (the skeleton has it); importmaps inside sub-composition templates load too late.
+
 ## Overlays and effects
 
-- Overlays (light leak, fades) work best as plain elements animated by the root timeline, not as timed `.clip`s.
-- `mix-blend-mode: screen` washes out over a purple plate. Use normal blending with a bright radial gradient for the leak.
+- Overlays (light leaks, fades) work best as plain elements animated by the root timeline, not as timed `.clip`s.
+- `mix-blend-mode: screen` washes out over saturated colour; for a visible flash use normal blending with a bright radial gradient.
 - Depth of field: an unmasked `backdrop-filter: blur()` blurs the whole frame. Mask it to the far edge.
 - Directional (motion) blur: SVG `<feGaussianBlur stdDeviation="44 0">` animated through `attr`, applied with `filter: url(#id)`.
 
