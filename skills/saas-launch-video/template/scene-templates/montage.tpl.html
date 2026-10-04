@@ -1,0 +1,195 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <!-- TEMPLATE: scripts/build.mjs renders this into montage.html with values from video.config.json
+         (double-brace placeholders). Edit this file (scene-templates/), not compositions/montage.html. Duration ~2.1 s:
+         phone URL-bar macro (1.0 s) then a 4-shot burst montage (6 frames each). Stylised look-alikes
+         only: generic layouts in brand colours, no third-party logos. -->
+  </head>
+  <body>
+    <template>
+      <style>
+        @font-face { font-family: "Poppins"; font-weight: 500; src: url("assets/fonts/poppins-latin-500-normal.woff2") format("woff2"); }
+        @font-face { font-family: "Poppins"; font-weight: 600; src: url("assets/fonts/poppins-latin-600-normal.woff2") format("woff2"); }
+        @font-face { font-family: "Poppins"; font-weight: 700; src: url("assets/fonts/poppins-latin-700-normal.woff2") format("woff2"); }
+
+        #root { position: absolute; inset: 0; overflow: hidden; font-family: "Poppins", sans-serif; perspective: 1300px; }
+        #root svg { display: block; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+        .r-shot { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; opacity: 0; }
+        .r-tilt { position: relative; }
+
+        /* A. phone address bar macro */
+        #r-phone { width: 1700px; height: 560px; border-radius: 60px; background: #fff; box-shadow: 0 50px 100px rgba(0, 0, 0, 0.55); overflow: hidden; }
+        #r-status { display: flex; justify-content: space-between; align-items: center; padding: 34px 70px 0; font-size: 34px; font-weight: 600; color: #111; }
+        #r-bar { position: relative; margin: 46px 50px 0; height: 150px; border-radius: 75px; background: #f1eff5; display: flex; align-items: center; padding: 0 56px; gap: 30px; }
+        #r-bar > svg { width: 52px; height: 52px; color: #6b6480; flex: none; }
+        #r-url { position: relative; font-size: 66px; font-weight: 500; color: #15101f; white-space: nowrap; }
+        #r-caret { position: absolute; left: 0; top: 0; width: 5px; height: 80px; border-radius: 3px; background: linear-gradient(180deg, #9b87f5, #7049c3); opacity: 0; }
+        #r-pixels {
+          position: absolute; inset: 0; pointer-events: none; mix-blend-mode: multiply; opacity: 0.22;
+          background-image: repeating-linear-gradient(90deg, rgba(255, 0, 0, 0.5) 0 1px, rgba(0, 255, 0, 0.5) 1px 2px, rgba(0, 0, 255, 0.5) 2px 3px),
+            repeating-linear-gradient(0deg, rgba(0, 0, 0, 0.35) 0 1px, transparent 1px 3px);
+        }
+        #r-dof { position: absolute; inset: 0; pointer-events: none; backdrop-filter: blur(9px);
+          -webkit-mask-image: linear-gradient(90deg, transparent 45%, #000 95%); mask-image: linear-gradient(90deg, transparent 45%, #000 95%); }
+
+        /* shared mock-up bits */
+        .m-card { position: relative; border-radius: 28px; overflow: hidden; background: #fff; color: #17121f; box-shadow: 0 40px 80px rgba(0, 0, 0, 0.5); }
+        .m-card img { display: block; width: 100%; height: 100%; object-fit: cover; }
+        .m-ph { width: 100%; height: 100%; background: linear-gradient(135deg, #2b1a4d, #7049c3 55%, #f2c0dd); }
+        .m-ava { width: 52px; height: 52px; border-radius: 50%; flex: none; display: flex; align-items: center; justify-content: center; background: #130128; }
+        .m-ava img { width: 60%; height: 60%; object-fit: contain; filter: brightness(0) invert(1); }
+        .m-row { display: flex; align-items: center; gap: 14px; }
+        .m-name { font-weight: 600; font-size: 20px; }
+        .m-meta { font-size: 15px; color: #8a8496; }
+        .m-link { display: inline-flex; align-items: center; gap: 10px; padding: 12px 20px; border-radius: 999px; background: #fff; color: #17121f; font-weight: 600; font-size: 19px; }
+        .m-link svg { width: 22px; height: 22px; color: #7049c3; }
+        #m-ad { width: 640px; }
+        #m-ad .m-head { padding: 22px 24px 14px; }
+        #m-ad .m-cap { padding: 0 24px 16px; font-size: 18px; line-height: 1.45; }
+        #m-ad .m-img { height: 400px; overflow: hidden; }
+        #m-ad .m-foot { display: flex; align-items: center; justify-content: space-between; padding: 18px 24px 22px; background: #f6f4f9; }
+        #m-ad .m-dom { font-size: 13px; letter-spacing: 0.04em; color: #8a8496; text-transform: uppercase; }
+        #m-ad .m-ttl { font-size: 20px; font-weight: 700; }
+        #m-ad .m-btn { padding: 14px 22px; border-radius: 12px; background: #7049c3; color: #fff; font-weight: 600; font-size: 18px; }
+        .m-tall { width: 470px; height: 836px; border-radius: 34px; }
+        .m-bg { position: absolute; inset: 0; }
+        .m-shade { position: absolute; inset: 0; background: linear-gradient(180deg, rgba(0, 0, 0, 0.45) 0%, rgba(0, 0, 0, 0) 22%, rgba(0, 0, 0, 0) 60%, rgba(0, 0, 0, 0.6) 100%); }
+        .m-bars { position: absolute; left: 18px; right: 18px; top: 18px; display: flex; gap: 6px; }
+        .m-bars i { flex: 1; height: 4px; border-radius: 2px; background: rgba(255, 255, 255, 0.45); }
+        .m-bars i:first-child { background: #fff; }
+        .m-top { position: absolute; left: 20px; top: 38px; color: #fff; }
+        .m-top .m-meta { color: rgba(255, 255, 255, 0.75); }
+        .m-bottom { position: absolute; left: 24px; right: 24px; bottom: 34px; color: #fff; display: flex; flex-direction: column; align-items: flex-start; gap: 14px; }
+        .m-acts { position: absolute; right: 18px; bottom: 170px; display: flex; flex-direction: column; gap: 24px; align-items: center; color: #fff; font-size: 14px; font-weight: 600; }
+        .m-acts span { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+        .m-acts svg { width: 42px; height: 42px; }
+        .m-cap2 { font-size: 18px; line-height: 1.4; max-width: 330px; }
+        #m-chat { width: 660px; background: #efeaf7; }
+        #m-chat .m-head { padding: 20px 24px; background: #fff; }
+        #m-chat .m-body { padding: 26px 24px 30px; display: flex; flex-direction: column; align-items: flex-end; }
+        .m-bubble { width: 470px; padding: 8px; border-radius: 22px 22px 6px 22px; background: #e4dbfb; }
+        .m-prev { border-radius: 16px; overflow: hidden; background: #fff; }
+        .m-prev-img { height: 210px; overflow: hidden; }
+        .m-prev-txt { padding: 14px 16px 16px; }
+        .m-prev-txt b { display: block; font-size: 18px; line-height: 1.3; }
+        .m-prev-txt span { display: block; font-size: 14px; color: #6f6a80; margin-top: 4px; }
+        .m-prev-txt em { display: block; font-style: normal; font-size: 13px; color: #7049c3; margin-top: 8px; font-weight: 600; }
+        .m-msg { padding: 10px 10px 4px; font-size: 18px; display: flex; justify-content: space-between; align-items: flex-end; gap: 16px; }
+        .m-msg small { font-size: 12px; color: #7d7690; }
+      </style>
+
+      <div id="root" data-composition-id="montage" data-width="1920" data-height="1080">
+        <div id="r-a" class="r-shot">
+          <div id="r-a-tilt" class="r-tilt">
+            <div id="r-phone">
+              <div id="r-status"><span>9:41</span><span>●●●</span></div>
+              <div id="r-bar">
+                <svg viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" /></svg>
+                <div id="r-url">{{montage.url}}<span id="r-caret"></span></div>
+              </div>
+            </div>
+            <div id="r-pixels"></div>
+          </div>
+          <div id="r-dof"></div>
+        </div>
+
+        <div id="r-b1" class="r-shot">
+          <div id="r-b1-tilt" class="r-tilt">
+            <div id="m-ad" class="m-card">
+              <div class="m-head m-row"><span class="m-ava"><img src="{{brand.mark}}" alt="" /></span><span><div class="m-name">{{brand.name}}</div><div class="m-meta">Sponsored</div></span></div>
+              <div class="m-cap">{{montage.caption}}</div>
+              <div class="m-img">{{img.ad}}</div>
+              <div class="m-foot"><span><div class="m-dom">{{montage.url}}</div><div class="m-ttl">{{montage.previewTitle}}</div></span><span class="m-btn">Learn more</span></div>
+            </div>
+          </div>
+        </div>
+
+        <div id="r-b2" class="r-shot">
+          <div id="r-b2-tilt" class="r-tilt">
+            <div class="m-card m-tall">
+              <div class="m-bg">{{img.story}}</div>
+              <div class="m-shade"></div>
+              <div class="m-bars"><i></i><i></i><i></i></div>
+              <div class="m-top m-row"><span class="m-ava" style="width: 44px; height: 44px"><img src="{{brand.mark}}" alt="" /></span><span><div class="m-name">{{montage.handle}}</div><div class="m-meta">2h</div></span></div>
+              <div class="m-bottom" style="align-items: center"><span class="m-link"><svg viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7" /><path d="M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7" /></svg>{{montage.url}}</span></div>
+            </div>
+          </div>
+        </div>
+
+        <div id="r-b3" class="r-shot">
+          <div id="r-b3-tilt" class="r-tilt">
+            <div class="m-card m-tall">
+              <div class="m-bg">{{img.video}}</div>
+              <div class="m-shade"></div>
+              <div class="m-acts">
+                <span><svg viewBox="0 0 24 24" style="fill: #fff; stroke: none"><path d="M19 14c1.5-1.5 3-3.2 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.8 0-3 .5-4.5 2-1.5-1.5-2.7-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4 3 5.5l7 7z" /></svg>12.4K</span>
+                <span><svg viewBox="0 0 24 24" style="fill: #fff; stroke: none"><path d="M21 11.5a8.4 8.4 0 0 1-9 8.4 9 9 0 0 1-4-.9L3 20l1.1-4.3A8.4 8.4 0 0 1 3 11.5 8.5 8.5 0 0 1 12 3a8.4 8.4 0 0 1 9 8.5z" /></svg>318</span>
+                <span><svg viewBox="0 0 24 24"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8M16 6l-4-4-4 4M12 2v13" /></svg>Share</span>
+              </div>
+              <div class="m-bottom">
+                <div class="m-name">@{{montage.handle}}</div>
+                <div class="m-cap2">{{montage.caption}}</div>
+                <span class="m-link"><svg viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7" /><path d="M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7" /></svg>{{montage.url}}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div id="r-b4" class="r-shot">
+          <div id="r-b4-tilt" class="r-tilt">
+            <div id="m-chat" class="m-card">
+              <div class="m-head m-row"><span class="m-ava" style="background: linear-gradient(135deg, #8a74f2, #f2c0dd)"></span><span><div class="m-name">{{montage.chatName}}</div><div class="m-meta">online</div></span></div>
+              <div class="m-body">
+                <div class="m-bubble">
+                  <div class="m-prev">
+                    <div class="m-prev-img">{{img.chat}}</div>
+                    <div class="m-prev-txt"><b>{{montage.previewTitle}}</b><span>{{montage.previewDesc}}</span><em>{{montage.url}}</em></div>
+                  </div>
+                  <div class="m-msg"><span>{{montage.chatMessage}}</span><small>10:42</small></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <script>
+        (function () {
+          document.fonts.ready.then(function () {
+            const FX = window.FX;
+            const tl = gsap.timeline({ paused: true });
+
+            // A. address bar macro: tilted, shallow DOF, typed URL (0 - 1.0 s)
+            tl.set("#r-a", { opacity: 1 }, 0);
+            tl.fromTo("#r-a-tilt", { rotationX: 16, rotationY: 26, rotationZ: -3, scale: 1.18, x: 260, y: 60 },
+              { rotationX: 12, rotationY: 20, rotationZ: -2, scale: 1.34, x: 120, y: 40, duration: 1.0, ease: "power1.out" }, 0);
+            const url = document.getElementById("r-url");
+            const caret = document.getElementById("r-caret");
+            const units = FX.split(url).filter((u) => u !== caret);
+            FX.typewriter(tl, units, 0.06, Math.max(20, units.length / 0.8), caret, url, { caretDy: 4, caretHold: 0.12 });
+            tl.set("#r-a", { opacity: 0 }, 1.0);
+
+            // B. burst montage: 4 shots x 6 frames, each tilted differently (1.0 - 2.1 s)
+            const shots = [
+              { id: "#r-b1", tilt: { rotationX: 10, rotationY: -20, rotationZ: -3 } },
+              { id: "#r-b2", tilt: { rotationX: 6, rotationY: 18, rotationZ: 4 } },
+              { id: "#r-b3", tilt: { rotationX: 12, rotationY: -12, rotationZ: -5 } },
+              { id: "#r-b4", tilt: { rotationX: 8, rotationY: 16, rotationZ: 3 } },
+            ];
+            shots.forEach((s, i) => {
+              const at = 1.0 + (i * 6) / 30;
+              const len = i === shots.length - 1 ? 2.1 - at : 6 / 30;
+              tl.set(s.id, { opacity: 1 }, at);
+              tl.fromTo(s.id + "-tilt", Object.assign({ scale: 1.16 }, s.tilt), { scale: i === 3 ? 1.12 : 1.02, rotationY: s.tilt.rotationY * 0.8, duration: len, ease: "power2.out" }, at);
+              if (i < shots.length - 1) tl.set(s.id, { opacity: 0 }, at + len);
+            });
+
+            window.__timelines["montage"] = tl;
+          });
+        })();
+      </script>
+    </template>
+  </body>
+</html>

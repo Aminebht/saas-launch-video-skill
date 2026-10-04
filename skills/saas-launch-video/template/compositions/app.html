@@ -1,0 +1,196 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <!-- EXAMPLE PRODUCT SCENE. Replace the window contents with the real product's UI, rebuilt
+         from its source code or screenshots (only features that ship). Keep the rig:
+           #a-stage (perspective) > #a-tilt (rotateX/Y about the centre) > #a-move (x/y/scale toward
+           a target) > #a-win (the app window, 1600x940). Targets are measured in window space, so
+           the target lands at the frame centre whatever the tilt.
+         Local timeline (slot 6.35 s - 14.0 s on the root): wide settle -> punch into the prompt ->
+         type + click send -> [root type cards cover 2.65 - 5.25] -> result streams in -> pull back. -->
+  </head>
+  <body>
+    <template>
+      <style>
+        @font-face { font-family: "Poppins"; font-weight: 400; src: url("assets/fonts/poppins-latin-400-normal.woff2") format("woff2"); }
+        @font-face { font-family: "Poppins"; font-weight: 500; src: url("assets/fonts/poppins-latin-500-normal.woff2") format("woff2"); }
+        @font-face { font-family: "Poppins"; font-weight: 600; src: url("assets/fonts/poppins-latin-600-normal.woff2") format("woff2"); }
+        @font-face { font-family: "Poppins"; font-weight: 700; src: url("assets/fonts/poppins-latin-700-normal.woff2") format("woff2"); }
+
+        #root { position: absolute; inset: 0; overflow: hidden; font-family: "Poppins", sans-serif; }
+        #a-stage { position: absolute; inset: 0; perspective: 1400px; }
+        #a-tilt, #a-move { position: absolute; inset: 0; transform-origin: 50% 50%; }
+        #a-win {
+          position: absolute; left: 160px; top: 70px; width: 1600px; height: 940px; border-radius: 16px; overflow: hidden;
+          background: #f7f6fb; color: #17122b; box-shadow: 0 40px 80px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.08);
+        }
+        #a-win svg { display: block; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+        /* sidebar */
+        #a-side { position: absolute; left: 0; top: 0; bottom: 0; width: 230px; padding: 26px 18px; background: #fff; border-right: 1px solid #ebe8f2; }
+        .a-logo { display: flex; align-items: center; gap: 10px; margin: 0 0 30px 8px; font-weight: 700; font-size: 17px; }
+        .a-logo img { width: 26px; height: 26px; }
+        .a-nav { height: 40px; display: flex; align-items: center; padding: 0 12px; border-radius: 10px; font-size: 14px; color: #6f6a80; }
+        .a-nav.on { background: rgba(112, 73, 195, 0.1); color: #17122b; font-weight: 500; }
+        /* main */
+        #a-main { position: absolute; left: 230px; top: 0; right: 0; bottom: 0; padding: 30px 40px; }
+        #a-main h2 { font-size: 22px; font-weight: 700; }
+        /* AI prompt box */
+        #a-input { position: relative; margin-top: 20px; width: 760px; border-radius: 14px; border: 1px solid #dcd7e8; background: #fff; box-shadow: 0 4px 14px rgba(23, 18, 43, 0.06); }
+        #a-input-text { position: relative; min-height: 58px; padding: 14px 64px 8px 16px; font-size: 15px; line-height: 1.55; }
+        #a-ph { position: absolute; left: 16px; top: 14px; color: #a29cb3; }
+        /* typed characters are one span each; pre-wrap keeps spaces as break points so long prompts wrap */
+        #a-input-text .ch { white-space: pre-wrap; }
+        .a-mention { color: #7049c3; font-weight: 600; }
+        #a-caret { position: absolute; left: 0; top: 0; width: 2px; height: 21px; border-radius: 1px; background: linear-gradient(180deg, #9b87f5, #7049c3); opacity: 0; }
+        #a-send { position: absolute; right: 12px; bottom: 10px; width: 38px; height: 38px; border-radius: 10px; display: flex; align-items: center; justify-content: center; background: #7049c3; color: #fff; }
+        #a-send svg { width: 16px; height: 16px; }
+        #a-send-ring { position: absolute; inset: -5px; border-radius: 13px; box-shadow: 0 0 0 2px rgba(155, 135, 245, 0.9), 0 0 18px rgba(155, 135, 245, 0.8); opacity: 0; }
+        /* result: an invoice draft */
+        #a-doc { position: absolute; left: 40px; top: 190px; width: 760px; padding: 30px 34px; border-radius: 16px; background: #fff; border: 1px solid #ebe8f2; box-shadow: 0 10px 30px rgba(23, 18, 43, 0.08); opacity: 0; }
+        .a-doc-head { display: flex; justify-content: space-between; align-items: flex-start; }
+        .a-doc-head b { font-size: 26px; }
+        .a-sub { margin-top: 4px; font-size: 13px; color: #6f6a80; }
+        .a-status { padding: 6px 12px; border-radius: 999px; background: rgba(112, 73, 195, 0.12); color: #4b2fa0; font-size: 12px; font-weight: 600; }
+        .a-line { display: flex; justify-content: space-between; padding: 14px 0; border-bottom: 1px solid #f0edf6; font-size: 15px; }
+        .a-total { display: flex; justify-content: space-between; margin-top: 18px; font-size: 20px; font-weight: 700; }
+        #a-sendinv { position: relative; margin-top: 22px; height: 46px; display: flex; align-items: center; justify-content: center; border-radius: 12px; background: #7049c3; color: #fff; font-weight: 600; }
+        #a-sendinv-glow { position: absolute; inset: -6px; border-radius: 16px; box-shadow: 0 0 0 1.5px #9b87f5, 0 0 22px 6px rgba(242, 192, 221, 0.8); opacity: 0; }
+        /* side panel: stats, so the wide shot reads as a real app */
+        #a-stats { position: absolute; right: 40px; top: 108px; width: 520px; display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+        .a-stat { padding: 20px; border-radius: 16px; background: #fff; border: 1px solid #ebe8f2; }
+        .a-stat p { font-size: 11px; font-weight: 600; letter-spacing: 0.1em; color: #6f6a80; }
+        .a-stat b { display: block; margin-top: 8px; font-size: 30px; }
+        /* cursor (lives in window space, so it zooms with the UI) */
+        #a-cursor { position: absolute; left: 0; top: 0; width: 30px; height: 30px; opacity: 0; transform-origin: 38% 8%; filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.35)); }
+        #a-cursor svg { width: 100%; height: 100%; overflow: visible; }
+        /* depth of field on the far (top-left) edge of tilted close-ups */
+        #a-dof { position: absolute; inset: 0; pointer-events: none; backdrop-filter: blur(6px); opacity: 0;
+          -webkit-mask-image: radial-gradient(75% 85% at 72% 62%, transparent 55%, #000 100%); mask-image: radial-gradient(75% 85% at 72% 62%, transparent 55%, #000 100%); }
+      </style>
+
+      <div id="root" data-layout-allow-overlap data-composition-id="app" data-width="1920" data-height="1080">
+        <div id="a-stage">
+          <div id="a-tilt">
+            <div id="a-move">
+              <div id="a-win">
+                <div id="a-side">
+                  <div class="a-logo"><img src="assets/brand/mark.svg" alt="" />Lumen</div>
+                  <div class="a-nav on">Invoices</div>
+                  <div class="a-nav">Clients</div>
+                  <div class="a-nav">Time</div>
+                  <div class="a-nav">Reports</div>
+                  <div class="a-nav">Settings</div>
+                </div>
+                <div id="a-main">
+                  <h2>Invoices</h2>
+                  <div id="a-input">
+                    <div id="a-input-text">
+                      <span id="a-ph">Ask Lumen to draft an invoice...</span>
+                      <span id="a-prompt">Invoice <span class="a-mention">Bluefield Studio</span> for 12 hours of design work, due in 14 days</span>
+                      <span id="a-caret"></span>
+                    </div>
+                    <div id="a-send"><span id="a-send-ring"></span><svg viewBox="0 0 24 24"><path d="m22 2-7 20-4-9-9-4Z" /><path d="M22 2 11 13" /></svg></div>
+                  </div>
+                  <div id="a-doc">
+                    <div class="a-doc-head"><div><b>Invoice #0142</b><div class="a-sub">Bluefield Studio · due in 14 days</div></div><span class="a-status">Draft</span></div>
+                    <div class="a-line"><span id="a-l1">UI design, 8 h × 90</span><span>720.00</span></div>
+                    <div class="a-line"><span id="a-l2">Design review, 4 h × 90</span><span>360.00</span></div>
+                    <div class="a-total"><span>Total</span><span id="a-total">1,080.00</span></div>
+                    <div id="a-sendinv"><span id="a-sendinv-glow"></span>Send invoice</div>
+                  </div>
+                  <div id="a-stats">
+                    <div class="a-stat"><p>OUTSTANDING</p><b>4,320</b></div>
+                    <div class="a-stat"><p>PAID THIS MONTH</p><b>12,960</b></div>
+                  </div>
+                </div>
+                <div id="a-cursor">
+                  <svg viewBox="0 0 32 32">
+                    <path d="M11 3.6c0-1.5 1.1-2.6 2.5-2.6S16 2.1 16 3.6V12c.3-1 1.2-1.7 2.3-1.7 1.3 0 2.3 1 2.3 2.3v.6c.3-.9 1.1-1.5 2.1-1.5 1.2 0 2.1.9 2.1 2.1v1c.3-.6.9-1 1.7-1 1.1 0 1.9.9 1.9 1.9V21c0 4.6-3.3 8.2-7.9 8.2h-3c-2.6 0-4.4-1.2-5.8-3.2l-5-7c-.8-1.1-.6-2.6.5-3.4 1.1-.8 2.6-.6 3.4.5L11 18.4z" fill="#fff" stroke="#111" stroke-width="1.5" stroke-linejoin="round" />
+                    <path d="M16 12v5.5M20.6 13.2v4.3M24.8 15v3" stroke="#111" stroke-width="1.3" stroke-linecap="round" fill="none" />
+                  </svg>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div id="a-dof"></div>
+      </div>
+
+      <script>
+        (function () {
+          document.fonts.ready.then(function () {
+            const FX = window.FX;
+            const tl = gsap.timeline({ paused: true });
+            const $ = (id) => document.getElementById(id);
+            const win = $("a-win");
+            const WCX = 800, WCY = 470; // window centre
+
+            // --- measure phase: read every offset while the element is laid out, then hide it ---
+            const caret = $("a-caret");
+            const box = $("a-input-text");
+            gsap.set("#a-ph", { display: "none" });
+            const units = FX.split($("a-prompt"));
+            const pos = FX.measure(units, box);
+            gsap.set("#a-prompt", { display: "none" });
+            gsap.set("#a-ph", { display: "inline" });
+            const centreOf = (el, dx, dy) => {
+              const o = FX.offsetIn(el, win);
+              return { x: o.x + el.offsetWidth / 2 - WCX + (dx || 0), y: o.y + el.offsetHeight / 2 - WCY + (dy || 0) };
+            };
+            const cursorAt = (el) => {
+              const o = FX.offsetIn(el, win);
+              return { x: o.x + el.offsetWidth / 2 - 11, y: o.y + el.offsetHeight / 2 - 2 };
+            };
+            // camera: absolute values only (relative "+=" tweens break parallel render workers)
+            function cam(at, dur, ease, s, target, tilt) {
+              const c = target ? (target.nodeType ? centreOf(target) : target) : { x: 0, y: 0 };
+              const p = { scale: s, x: -c.x * s, y: -c.y * s };
+              if (dur === 0) tl.set("#a-move", p, at);
+              else tl.to("#a-move", Object.assign(p, { duration: dur, ease }), at);
+              if (tilt) {
+                const t = { rotationX: tilt[0], rotationY: tilt[1] };
+                if (dur === 0) tl.set("#a-tilt", t, at);
+                else tl.to("#a-tilt", Object.assign(t, { duration: dur, ease }), at);
+              }
+            }
+            const input = $("a-input");
+            const send = $("a-send");
+            const doc = $("a-doc");
+            const cur = $("a-cursor");
+
+            // 1. wide: the floating window settles on the gradient (C1 + C2 + C3)
+            cam(0, 0, "none", 0.8, null, [12, -16]);
+            cam(0, 1.0, "power2.out", 0.84, null, [9, -12]);
+            // 2. punch into the prompt (C4), type, click send
+            cam(1.0, 0.6, FX.PUNCH, 2.1, input, [12, -16]);
+            cam(1.6, 1.05, "none", 2.2, input, null);
+            tl.to("#a-dof", { opacity: 1, duration: 0.4 }, 1.1);
+            tl.set("#a-ph", { display: "none" }, 1.28);
+            tl.set("#a-prompt", { display: "inline" }, 1.28);
+            FX.typewriter(tl, units, 1.3, 52, caret, box, { pos, caretHold: 0.05 });
+            tl.set(cur, { x: cursorAt(send).x + 130, y: cursorAt(send).y + 110, opacity: 1 }, 2.05);
+            FX.glide(tl, cur, cursorAt(send), 2.08, 0.48);
+            FX.click(tl, cur, send, 2.62);
+            tl.fromTo("#a-send-ring", { opacity: 0 }, { opacity: 1, duration: 0.08 }, 2.62);
+            // 3. while the root cards cover (2.65 - 5.25): reset to the result framing
+            tl.set("#a-dof", { opacity: 0 }, 2.7);
+            tl.set(cur, { opacity: 0 }, 2.7);
+            cam(5.2, 0, "none", 1.5, doc, [11, -16]);
+            // 4. the result builds: document in, lines stream with a lit leading edge
+            tl.fromTo(doc, { opacity: 0, y: 30 }, { opacity: 1, y: 0, duration: 0.45, ease: "expo.out" }, 5.25);
+            FX.stream(tl, $("a-l1"), 5.4, 9, "#8a5cf0", { color: "#17122b" });
+            FX.stream(tl, $("a-l2"), 5.7, 9, "#8a5cf0", { color: "#17122b" });
+            tl.fromTo("#a-total", { opacity: 0, scale: 1.2 }, { opacity: 1, scale: 1, duration: 0.35, ease: "back.out(2)" }, 6.0);
+            cam(5.25, 1.3, "none", 1.62, doc, null);
+            tl.fromTo("#a-sendinv-glow", { opacity: 0 }, { opacity: 1, duration: 0.35 }, 6.25);
+            // 5. pull back (C5) to show the whole window
+            cam(6.6, 0.9, "power3.inOut", 0.9, null, [9, -13]);
+
+            window.__timelines["app"] = tl;
+          });
+        })();
+      </script>
+    </template>
+  </body>
+</html>

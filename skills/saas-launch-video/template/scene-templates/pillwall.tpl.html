@@ -1,0 +1,99 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <!-- TEMPLATE: rendered into pillwall.html by scripts/build.mjs. Labels come from
+         video.config.json "pills" (rows) and "pillsHighlight" ("row:index" pairs, first one
+         is where the camera starts). Only list features that are live in production. -->
+  </head>
+  <body>
+    <template>
+      <style>
+        @font-face { font-family: "Poppins"; font-weight: 500; src: url("assets/fonts/poppins-latin-500-normal.woff2") format("woff2"); }
+
+        #root { position: absolute; inset: 0; overflow: hidden; font-family: "Poppins", sans-serif; perspective: 1500px; }
+        #pw-cam { position: absolute; inset: 0; transform-origin: 50% 50%; }
+        #pw-wall { position: absolute; left: 50%; top: 50%; width: 0; height: 0; }
+        .pw-row { position: absolute; left: 0; top: 0; display: flex; gap: 22px; white-space: nowrap; }
+        .pw-pill {
+          display: inline-flex; align-items: center; gap: 14px; height: 78px; padding: 0 32px 0 18px; border-radius: 999px;
+          background: rgba(22, 8, 40, 0.72); border: 1px solid rgba(255, 255, 255, 0.14); color: #fff; font-size: 30px; font-weight: 500;
+          box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
+        }
+        .pw-pill i {
+          width: 46px; height: 46px; border-radius: 50%; flex: none;
+          background: linear-gradient(135deg, rgba(138, 116, 242, 0.9), rgba(242, 192, 221, 0.9));
+          -webkit-mask: radial-gradient(circle, #000 34%, transparent 36%, transparent 54%, #000 56%);
+          mask: radial-gradient(circle, #000 34%, transparent 36%, transparent 54%, #000 56%);
+        }
+        .pw-pill.hi { border: 2px solid #9b87f5; background: rgba(48, 22, 92, 0.85); box-shadow: 0 0 0 1px rgba(242, 192, 221, 0.35), 0 0 34px 6px rgba(155, 135, 245, 0.55); }
+        #pw-mark {
+          position: absolute; left: 50%; top: 50%; width: 236px; height: 236px; margin: -118px 0 0 -118px; border-radius: 30%;
+          display: flex; align-items: center; justify-content: center; background: #12052a;
+          border: 1px solid rgba(155, 135, 245, 0.6); box-shadow: 0 0 80px 20px rgba(112, 73, 195, 0.55), 0 30px 60px rgba(0, 0, 0, 0.5);
+        }
+        #pw-mark img { width: 52%; height: 64%; object-fit: contain; display: block; filter: brightness(0) invert(1); }
+      </style>
+
+      <div id="root" data-composition-id="pillwall" data-width="1920" data-height="1080">
+        <div id="pw-cam">
+          <div id="pw-wall" data-layout-allow-overlap></div>
+          <div id="pw-mark"><img src="{{brand.mark}}" alt="" /></div>
+        </div>
+      </div>
+
+      <script>
+        (function () {
+          document.fonts.ready.then(function () {
+            const tl = gsap.timeline({ paused: true });
+            const rows = {{pills}};
+            const highlight = {{pillsHighlight}};
+            const wall = document.getElementById("pw-wall");
+            const ROWH = 108;
+            const mid = (rows.length - 1) / 2;
+            const rowEls = rows.map((labels, r) => {
+              const row = document.createElement("div");
+              row.className = "pw-row";
+              // three copies so the strip never runs out while it scrolls
+              for (let copy = 0; copy < 3; copy++) {
+                labels.forEach((txt, k) => {
+                  const p = document.createElement("span");
+                  const hi = copy === 1 && highlight.includes(r + ":" + k);
+                  p.className = "pw-pill" + (hi ? " hi" : "");
+                  if (copy === 1 && highlight[0] === r + ":" + k) p.id = "pw-focus";
+                  p.innerHTML = "<i></i>";
+                  p.appendChild(document.createTextNode(txt));
+                  row.appendChild(p);
+                });
+              }
+              wall.appendChild(row);
+              return row;
+            });
+            // centre each row on its middle copy; rows alternate scroll direction
+            const baseX = rowEls.map((row, r) => -row.scrollWidth / 2 + (r % 2 ? 140 : -60));
+            rowEls.forEach((row, r) => {
+              const y = (r - mid) * ROWH - 39;
+              const dir = r % 2 ? 1 : -1;
+              tl.fromTo(row, { x: baseX[r], y }, { x: baseX[r] + dir * 260, y, duration: 3.5, ease: "none" }, 0);
+            });
+
+            // camera: macro on the first highlighted pill -> pull out to the whole wall
+            const focus = document.getElementById("pw-focus");
+            let fx = 0, fy = 0;
+            if (focus) {
+              const r = Number(highlight[0].split(":")[0]);
+              fx = baseX[r] + focus.offsetLeft + focus.offsetWidth / 2;
+              fy = (r - mid) * ROWH;
+            }
+            tl.fromTo("#pw-cam", { scale: 2.7, x: -fx * 2.7, y: -fy * 2.7, rotationX: 22, rotationY: -18 },
+              { scale: 1.05, x: 0, y: 0, rotationX: 16, rotationY: -12, duration: 1.7, ease: "power3.inOut" }, 0);
+            tl.to("#pw-cam", { scale: 0.96, rotationX: 13, rotationY: -9, duration: 1.8, ease: "none" }, 1.7);
+            tl.fromTo("#pw-mark", { scale: 0.7, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.7, ease: "back.out(1.8)" }, 0.6);
+
+            window.__timelines["pillwall"] = tl;
+          });
+        })();
+      </script>
+    </template>
+  </body>
+</html>
